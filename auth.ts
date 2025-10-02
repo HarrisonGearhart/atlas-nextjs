@@ -1,17 +1,7 @@
 import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
-
-async function fetchUser(email: string) {
-  if (email === "user@atlasmail.com") {
-    return {
-      id: "1",
-      email: "user@atlasmail.com",
-      password: await bcrypt.hash("123456", 10),
-    };
-  }
-  return null;
-}
+import { fetchUser } from "./lib/data";
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   theme: {
@@ -22,27 +12,29 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   providers: [
     Credentials({
       credentials: {
-        email: { label: "Email" },
-        password: { label: "Password", type: "password" },
+        email: {
+          label: "Email",
+        },
+        password: {
+          label: "Password",
+          type: "password",
+        },
       },
-      authorize: async (credentials) => {
-        // cast credentials to correct type
-        const { email, password } = credentials as {
-          email: string;
-          password: string;
-        };
-
-        if (!email || !password) return null;
-
+      //@ts-ignore
+      authorize: async (credentials: { email: string; password: string }) => {
+        const { email, password } = credentials;
         const user = await fetchUser(email);
-        if (!user) return null;
-
+        if (!user) return null; //@ts-ignore
         const passwordsMatch = await bcrypt.compare(password, user.password);
-        return passwordsMatch ? user : null;
+        if (passwordsMatch) return user;
+        return null;
       },
     }),
   ],
   callbacks: {
-    authorized: async ({ auth }) => !!auth,
+    authorized: async ({ auth }) => {
+      // Logged in users are authenticated, otherwise redirect to login page
+      return !!auth;
+    },
   },
 });
